@@ -56,7 +56,12 @@ import UserNotifications
             file: supportFolder.appending(path: "crossover.json"),
             locate: locateCrossOver
         )
-        launcher = LaunchController(settings: settings, crossOver: crossOver)
+        launcher = LaunchController(
+            settings: settings,
+            crossOver: crossOver,
+            client: client,
+            supportFolder: supportFolder
+        )
         cloudSaves = CloudSaveModel(client: client, file: supportFolder.appending(path: "cloudsaves.json"))
         cloudSaves.windowsEnvironment = { [launcher] id in launcher.windowsEnvironment(for: id) }
         launcher.beforeLaunch = { [weak self] record in await self?.syncSavesAroundLaunch(record) }

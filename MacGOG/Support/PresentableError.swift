@@ -28,6 +28,7 @@ nonisolated enum AppError: Error, Hashable, Sendable {
     case notEnoughSpace(needed: Int64, available: Int64)
     case wineNotConfigured
     case crossOverNotInstalled
+    case setupFailed(status: Int32)
     case folderMissing(String)
     case gameIsBusy
     case notInstalled
@@ -59,6 +60,14 @@ nonisolated enum AppError: Error, Hashable, Sendable {
                 title: "CrossOver isn't installed",
                 message: "Install CrossOver from codeweavers.com, or choose another Wine in Settings.",
                 recoveries: [.openSettings]
+            )
+        case .setupFailed(let status):
+            PresentableError(
+                title: "Couldn't set up the game",
+                message:
+                    "GOG's install script for this game failed (status \(status)). Try again, or use "
+                    + "More > Run Setup Again later.",
+                recoveries: [.retry]
             )
         case .folderMissing(let path):
             PresentableError(

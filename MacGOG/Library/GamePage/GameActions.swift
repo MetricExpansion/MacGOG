@@ -109,6 +109,18 @@ struct GameActions: View {
                 NSWorkspace.shared.activateFileViewerSelecting([record.entry.folder])
             }
             if record.platform == .windows {
+                if record.installation != nil {
+                    Button("Run Setup Again") {
+                        Task {
+                            do {
+                                try await launcher.runSetup(record)
+                            } catch {
+                                model.present(error)
+                            }
+                        }
+                    }
+                    .help("Install the game's runtimes and run its install script again in its bottle.")
+                }
                 Button("Windows Game Settings…") { openSettings() }
             }
             Divider()
@@ -148,7 +160,7 @@ private struct PlayButton: View {
                     HStack(spacing: 6) {
                         ProgressView()
                             .controlSize(.small)
-                        Text("Starting…")
+                        Text(launcher.preparingStatus[record.id] ?? "Starting…")
                     }
                     .padding(.horizontal, 6)
                 } else {

@@ -29,6 +29,11 @@ private func fakeCrossOver(in folder: URL) throws -> CrossOver {
     return crossOver
 }
 
+private func testClient() throws -> GOGClient {
+    let http = HTTPClient(transport: FixtureTransport(routes: [:]), attempts: 1)
+    return try GOGClient(auth: Authorization(accessToken: "test", http: http), http: http)
+}
+
 @MainActor
 @Suite struct CrossOverModelTests {
     @Test func bottleNamesAreFolderSafeAndUnique() {
@@ -78,7 +83,12 @@ private func fakeCrossOver(in folder: URL) throws -> CrossOver {
         )
         let model = CrossOverModel(file: folder.url.appending(path: "crossover.json")) { crossOver }
         model.refresh()
-        let launcher = LaunchController(settings: settings, crossOver: model)
+        let launcher = LaunchController(
+            settings: settings,
+            crossOver: model,
+            client: try testClient(),
+            supportFolder: folder.url
+        )
         // CrossOver is the default when it's installed.
         #expect(launcher.windowsRunner == .crossOver)
         #expect(launcher.windowsEnvironment(for: "1") == nil)
@@ -100,9 +110,59 @@ private func fakeCrossOver(in folder: URL) throws -> CrossOver {
         )
         let model = CrossOverModel(file: folder.url.appending(path: "crossover.json")) { nil }
         model.refresh()
-        let launcher = LaunchController(settings: settings, crossOver: model)
+        let launcher = LaunchController(
+            settings: settings,
+            crossOver: model,
+            client: try testClient(),
+            supportFolder: folder.url
+        )
         #expect(launcher.windowsRunner == .wine)
         settings.windowsRunner = .crossOver
         #expect(launcher.windowsEnvironment(for: "1") == nil)
+    }
+
+    @Test func windowsGamesAreSetUpOncePerBuildAndBottle() async throws {
+        let folder = try TemporaryFolder()
+        defer { folder.cleanUp() }
+        let crossOver = try fakeCrossOver(in: folder.url)
+        let settings = AppSettings(
+            defaults: UserDefaults(suiteName: "MacGOGTests-\(UUID().uuidString)") ?? .standard
+        )
+        let model = CrossOverModel(file: folder.url.appending(path: "crossover.json")) { crossOver }
+        model.refresh()
+        let launcher = LaunchController(
+            settings: settings,
+            crossOver: model,
+            client: try testClient(),
+            supportFolder: folder.url
+        )
+        // A Windows game with no runtimes or install script.
+        let root = folder.url.appending(path: "Game", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(
+            at: root.appending(path: ".gogdl"),
+            withIntermediateDirectories: true
+        )
+        let plan = InstallPlan(
+            product: "1",
+            platform: .windows,
+            buildID: "7",
+            version: "1.0",
+            folder: "Game",
+            language: "en-US",
+            files: []
+        )
+        try JSONEncoder().encode(plan).write(to: root.appending(path: ".gogdl/manifest.json"))
+        let record = InstalledGameRecord(
+            entry: RegistryEntry(productID: "1", path: root.path, title: "Game"),
+            status: .ready(try Installation(at: root)),
+            info: nil
+        )
+        #expect(launcher.needsSetup(record))
+        try await launcher.runSetup(record)
+        #expect(model.bottle(for: "1")?.name == "Game")
+        #expect(!launcher.needsSetup(record))
+        // Moving the game to another bottle means setting it up there.
+        try await model.createBottle(for: "1", title: "Game", settings: CrossOverSettings())
+        #expect(launcher.needsSetup(record))
     }
 }

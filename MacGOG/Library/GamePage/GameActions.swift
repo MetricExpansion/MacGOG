@@ -139,14 +139,25 @@ private struct PlayButton: View {
 
     var body: some View {
         let blocker = launcher.blocker(for: record)
+        let preparing = launcher.isPreparing(record.id)
         HStack(spacing: 4) {
             Button {
                 play(nil)
             } label: {
-                Label("Play", systemImage: "play.fill")
+                if preparing {
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Starting…")
+                    }
                     .padding(.horizontal, 6)
+                } else {
+                    Label("Play", systemImage: "play.fill")
+                        .padding(.horizontal, 6)
+                }
             }
             .buttonStyle(.glassProminent)
+            .disabled(preparing)
             if tasks.count > 1 || !links.isEmpty {
                 Menu {
                     ForEach(tasks, id: \.index) { task in

@@ -68,65 +68,114 @@ private struct GeneralSettings: View {
 
 private struct WindowsSettings: View {
     @Environment(AppSettings.self) private var settings
+    @Environment(CrossOverModel.self) private var crossOver
+    @Environment(LaunchController.self) private var launcher
 
     var body: some View {
         @Bindable var settings = settings
         Form {
             Section {
-                LabeledContent("Wine binary") {
-                    HStack {
-                        TextField(
-                            "Wine binary",
-                            text: $settings.winePath,
-                            prompt: Text("/opt/homebrew/bin/wine64")
+                Picker(
+                    "Run Windows games with",
+                    selection: Binding(get: { launcher.windowsRunner }, set: { settings.windowsRunner = $0 })
+                ) {
+                    Text(crossOver.crossOver?.version.map { "CrossOver \($0)" } ?? "CrossOver").tag(
+                        WindowsRunner.crossOver
+                    )
+                    Text("Other Wine").tag(WindowsRunner.wine)
+                }
+                .pickerStyle(.radioGroup)
+            } footer: {
+                if !crossOver.isInstalled {
+                    HStack(spacing: 4) {
+                        Text("CrossOver isn't installed.")
+                        Link(
+                            "Get CrossOver",
+                            destination: URL(string: "https://www.codeweavers.com/crossover")!
                         )
-                        .labelsHidden()
-                        Button("Choose…") {
-                            if let file = FolderPicker.chooseExecutable(
-                                message: "Choose Wine or a compatible launcher."
-                            ) {
-                                settings.winePath = file.path
-                            }
-                        }
                     }
                 }
-                if !settings.winePath.isEmpty, !settings.isWineConfigured {
-                    Label("No executable file is at that path.", systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                }
-            } footer: {
-                Text(
-                    "MacGOG doesn't include Wine. Install Wine, CrossOver, or a similar tool, then choose its binary."
-                )
+            }
+            switch launcher.windowsRunner {
+            case .crossOver:
+                crossOverSection
+            case .wine:
+                wineSection
             }
             Section {
-                LabeledContent("Prefixes folder") {
-                    HStack {
-                        Text(settings.winePrefixesFolder.path)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Button("Choose…") {
-                            if let folder = FolderPicker.choose(
-                                message: "Choose where Wine prefixes are kept.",
-                                directory: settings.winePrefixesFolder
-                            ) {
-                                settings.winePrefixesFolder = folder
-                            }
-                        }
-                    }
-                }
                 TextField(
                     "Launch wrapper",
                     text: $settings.launchWrapper,
-                    prompt: Text("Optional, such as gamemoderun")
+                    prompt: Text("Optional, such as caffeinate -i")
                 )
             } footer: {
-                Text(
-                    "Each Windows game gets its own Wine prefix in this folder. The wrapper command runs before every game."
-                )
+                Text("A command that runs every game, macOS and Windows alike.")
             }
         }
         .formStyle(.grouped)
+        .task { crossOver.refresh() }
+    }
+
+    private var crossOverSection: some View {
+        Section {
+            SettingsEditor(settings: settings.newBottleSettings) { settings.newBottleSettings = $0 }
+            if let graphics = settings.newBottleSettings.graphics {
+                Text(graphics.summary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("New Bottles")
+        } footer: {
+            Text(
+                "Each Windows game gets its own CrossOver bottle the first time you play it, with these "
+                    + "settings. Change a game's bottle on its page; MacGOG never changes bottles you made in CrossOver."
+            )
+        }
+    }
+
+    @ViewBuilder private var wineSection: some View {
+        @Bindable var settings = settings
+        Section {
+            LabeledContent("Wine binary") {
+                HStack {
+                    TextField(
+                        "Wine binary",
+                        text: $settings.winePath,
+                        prompt: Text("/opt/homebrew/bin/wine64")
+                    )
+                    .labelsHidden()
+                    Button("Choose…") {
+                        if let file = FolderPicker.chooseExecutable(
+                            message: "Choose Wine or a compatible launcher."
+                        ) {
+                            settings.winePath = file.path
+                        }
+                    }
+                }
+            }
+            if !settings.winePath.isEmpty, !settings.isWineConfigured {
+                Label("No executable file is at that path.", systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+            }
+            LabeledContent("Prefixes folder") {
+                HStack {
+                    Text(settings.winePrefixesFolder.path)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Button("Choose…") {
+                        if let folder = FolderPicker.choose(
+                            message: "Choose where Wine prefixes are kept.",
+                            directory: settings.winePrefixesFolder
+                        ) {
+                            settings.winePrefixesFolder = folder
+                        }
+                    }
+                }
+            }
+        } footer: {
+            Text("MacGOG doesn't include Wine. Each Windows game gets its own Wine prefix in this folder.")
+        }
     }
 }
 

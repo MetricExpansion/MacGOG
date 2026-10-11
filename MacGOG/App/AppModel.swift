@@ -13,6 +13,7 @@ import UserNotifications
     let registry: InstallRegistry
     let downloads: DownloadQueue
     let launcher: LaunchController
+    let crossOver: CrossOverModel
     let cloudSaves: CloudSaveModel
     let artwork: ArtworkLoader
 
@@ -33,7 +34,8 @@ import UserNotifications
         supportFolder: URL,
         artwork: ArtworkLoader,
         hooks: QueueHooks,
-        sessionState: SessionModel.State = .unknown
+        sessionState: SessionModel.State = .unknown,
+        locateCrossOver: @escaping @MainActor () -> CrossOver? = CrossOverModel.locateInstalled
     ) {
         let auth = Authorization(store: store, http: http)
         let client = GOGClient(auth: auth, http: http)
@@ -50,12 +52,13 @@ import UserNotifications
             file: supportFolder.appending(path: "jobs.json"),
             hooks: hooks
         )
-        launcher = LaunchController(settings: settings)
-        cloudSaves = CloudSaveModel(
-            client: client,
-            settings: settings,
-            file: supportFolder.appending(path: "cloudsaves.json")
+        crossOver = CrossOverModel(
+            file: supportFolder.appending(path: "crossover.json"),
+            locate: locateCrossOver
         )
+        launcher = LaunchController(settings: settings, crossOver: crossOver)
+        cloudSaves = CloudSaveModel(client: client, file: supportFolder.appending(path: "cloudsaves.json"))
+        cloudSaves.windowsEnvironment = { [launcher] id in launcher.windowsEnvironment(for: id) }
         launcher.beforeLaunch = { [weak self] record in await self?.syncSavesAroundLaunch(record) }
         launcher.afterExit = { [weak self] record in await self?.syncSavesAroundLaunch(record) }
         session.onChange = { [weak self] signedIn in self?.sessionChanged(signedIn: signedIn) }
@@ -87,6 +90,7 @@ import UserNotifications
 
     /// Restores state from disk and the Keychain. Called once at launch.
     func start() async {
+        crossOver.refresh()
         library.loadCached()
         downloads.restore()
         await registry.load()

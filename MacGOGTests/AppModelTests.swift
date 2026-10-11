@@ -62,7 +62,8 @@ import Testing
             defaults: UserDefaults(suiteName: "MacGOGTests-\(UUID().uuidString)") ?? .standard,
             supportFolder: folder.url,
             artwork: ArtworkLoader(cache: folder.url),
-            hooks: .none
+            hooks: .none,
+            locateCrossOver: { nil }
         )
         await model.session.restore()
         #expect(model.session.state == .signedOut)

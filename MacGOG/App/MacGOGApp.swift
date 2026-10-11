@@ -76,6 +76,7 @@ extension View {
             .environment(model.downloads)
             .environment(model.launcher)
             .environment(model.cloudSaves)
+            .environment(model.crossOver)
             .environment(\.artworkLoader, model.artwork)
     }
 }

@@ -29,7 +29,8 @@ extension AppModel {
             defaults: defaults,
             supportFolder: folder,
             artwork: ArtworkLoader(cache: folder.appending(path: "Artwork")),
-            hooks: .none
+            hooks: .none,
+            locateCrossOver: { nil }
         )
     }
 }

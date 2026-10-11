@@ -21,17 +21,21 @@ import SwiftyGOG
     /// Sync state per product ID, then per save location name.
     private(set) var state: [String: [String: LocationState]] = [:]
     private(set) var syncing: Set<String> = []
-    /// Save locations found per product ID.
-    private(set) var locations: [String: [SaveLocation]] = [:]
+    /// Save locations found, by product ID and the Windows `C:` drive they were found for.
+    private var locations: [String: [SaveLocation]] = [:]
     var pendingConflict: Conflict?
 
+    /// Where a Windows game's `C:` drive lives and its Windows user, or `nil` when it has none yet,
+    /// such as before its CrossOver bottle exists.
+    @ObservationIgnored var windowsEnvironment: @MainActor (String) -> (prefix: URL, user: String)? = { _ in
+        nil
+    }
+
     @ObservationIgnored private let saves: CloudSaves
-    @ObservationIgnored private let settings: AppSettings
     @ObservationIgnored private let file: StateFile<[String: [String: LocationState]]>
 
-    init(client: GOGClient, settings: AppSettings, file: URL) {
+    init(client: GOGClient, file: URL) {
         saves = CloudSaves(client: client)
-        self.settings = settings
         self.file = StateFile(url: file)
         state = (try? self.file.load()) ?? [:]
     }
@@ -42,19 +46,26 @@ import SwiftyGOG
         state[productID]?.values.compactMap(\.lastSynced).max()
     }
 
-    /// Where a game keeps the saves GOG syncs; empty when it has none.
-    func loadLocations(for record: InstalledGameRecord) async throws -> [SaveLocation] {
-        if let known = locations[record.id] {
+    /// Where a game keeps the saves GOG syncs; empty when it has none, and `nil` when a Windows game
+    /// has no `C:` drive yet to keep them in.
+    func loadLocations(for record: InstalledGameRecord) async throws -> [SaveLocation]? {
+        guard let platform = record.platform else { return [] }
+        let windows = platform == .osx ? nil : windowsEnvironment(record.id)
+        if platform != .osx, windows == nil {
+            return nil
+        }
+        let key = "\(record.id)|\(windows?.prefix.path ?? "")"
+        if let known = locations[key] {
             return known
         }
-        guard let platform = record.platform else { return [] }
         let found = try await saves.locations(
             id: record.id,
             platform: platform,
             installation: record.entry.folder,
-            winePrefix: settings.winePrefix(for: record.id)
+            winePrefix: windows?.prefix,
+            user: windows?.user ?? NSUserName()
         )
-        locations[record.id] = found
+        locations[key] = found
         return found
     }
 
@@ -64,7 +75,7 @@ import SwiftyGOG
         guard let platform = record.platform, !isSyncing(record.id) else { return }
         syncing.insert(record.id)
         defer { syncing.remove(record.id) }
-        for location in try await loadLocations(for: record) {
+        for location in try await loadLocations(for: record) ?? [] {
             let since = state[record.id]?[location.name]?.since ?? 0
             var chosen = preference
             let preview = try await saves.sync(
@@ -104,7 +115,7 @@ import SwiftyGOG
     /// Deletes every cloud save of a game.
     func deleteCloudSaves(_ record: InstalledGameRecord) async throws {
         guard let platform = record.platform else { return }
-        for location in try await loadLocations(for: record) {
+        for location in try await loadLocations(for: record) ?? [] {
             try await saves.clear(id: record.id, platform: platform, name: location.name)
         }
         state[record.id] = nil

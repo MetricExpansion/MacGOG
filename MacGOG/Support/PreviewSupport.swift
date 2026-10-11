@@ -210,7 +210,8 @@
                 supportFolder: folder,
                 artwork: ArtworkLoader(cache: folder.appending(path: "Artwork")),
                 hooks: .none,
-                sessionState: signedIn ? .signedIn : .signedOut
+                sessionState: signedIn ? .signedIn : .signedOut,
+                locateCrossOver: { nil }
             )
             model.settings.libraryFolder = folder.appending(path: "Games", directoryHint: .isDirectory)
             guard signedIn else { return model }

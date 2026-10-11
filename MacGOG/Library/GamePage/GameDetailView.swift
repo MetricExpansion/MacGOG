@@ -135,6 +135,9 @@ struct GameDetailView: View {
     @ViewBuilder private func statusCards(record: InstalledGameRecord?) -> some View {
         if let record {
             InstallationCard(record: record)
+            if record.platform == .windows, model.launcher.windowsRunner == .crossOver {
+                CrossOverCard(record: record)
+            }
             if record.installation != nil {
                 CloudSavesCard(record: record)
             }

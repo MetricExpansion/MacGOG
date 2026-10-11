@@ -27,6 +27,7 @@ nonisolated enum AppError: Error, Hashable, Sendable {
     case keychain(OSStatus)
     case notEnoughSpace(needed: Int64, available: Int64)
     case wineNotConfigured
+    case crossOverNotInstalled
     case folderMissing(String)
     case gameIsBusy
     case notInstalled
@@ -51,6 +52,12 @@ nonisolated enum AppError: Error, Hashable, Sendable {
             PresentableError(
                 title: "Wine isn't set up",
                 message: "Windows games need Wine or a compatible wrapper. Choose one in Settings.",
+                recoveries: [.openSettings]
+            )
+        case .crossOverNotInstalled:
+            PresentableError(
+                title: "CrossOver isn't installed",
+                message: "Install CrossOver from codeweavers.com, or choose another Wine in Settings.",
                 recoveries: [.openSettings]
             )
         case .folderMissing(let path):
@@ -158,6 +165,8 @@ private nonisolated func presentable(_ error: GOGError) -> PresentableError {
             title: "Cloud save conflict",
             message: "Saves changed both on this Mac and in the cloud. Choose which to keep."
         )
+    case .crossOver(let problem):
+        PresentableError(title: "CrossOver problem", message: problem.description, recoveries: [.retry])
     case .checksumMismatch:
         PresentableError(
             title: "Download was damaged",

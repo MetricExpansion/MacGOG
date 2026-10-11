@@ -306,7 +306,9 @@ struct CloudSavesCard: View {
 
     @Environment(AppModel.self) private var model
     @Environment(CloudSaveModel.self) private var cloudSaves
+    @Environment(CrossOverModel.self) private var crossOver
     @State private var locations: [SaveLocation]?
+    @State private var needsBottle = false
     @State private var lookupError: PresentableError?
     @State private var confirmingDelete = false
 
@@ -315,6 +317,11 @@ struct CloudSavesCard: View {
             if let lookupError {
                 Text("Cloud saves couldn't be checked. \(lookupError.message)")
                     .foregroundStyle(.secondary)
+            } else if needsBottle {
+                Text(
+                    "Saves sync once the game has a CrossOver bottle, which is made the first time you play."
+                )
+                .foregroundStyle(.secondary)
             } else if let locations {
                 if locations.isEmpty {
                     Text(
@@ -361,9 +368,12 @@ struct CloudSavesCard: View {
                     .controlSize(.small)
             }
         }
-        .task(id: record.id) {
+        // Look again when the game moves to another bottle.
+        .task(id: "\(record.id)|\(crossOver.bottle(for: record.id)?.name ?? "")") {
             do {
-                locations = try await cloudSaves.loadLocations(for: record)
+                let found = try await cloudSaves.loadLocations(for: record)
+                needsBottle = found == nil
+                locations = found ?? []
                 lookupError = nil
             } catch {
                 lookupError = presentableError(error)

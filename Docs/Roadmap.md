@@ -97,6 +97,20 @@ Notes:
 - Sync state is per game and per save location, in `cloudsaves.json`. A sync failure around launch is shown but never blocks play.
 - Not yet tried against real cloud saves.
 
+## M6b. CrossOver integration
+
+- [x] **(library)** `CrossOver`: find the app, list bottles from `cxbottle.conf`, create bottles with settings, change only the settings MacGOG owns, and stop a bottle's programs. `LaunchOptions.crossOver` runs a game with `wine --bottle B --workdir D --wait-children -- <game>`; `gogdl launch` and `save-locations` take `--crossover-bottle`.
+- [x] Settings: run Windows games with CrossOver (the default when it's installed) or another Wine; default graphics backend, MSync, and MetalFX for new bottles.
+- [x] Each Windows game gets its own bottle the first time it's played, or the user picks an existing one on the game page. MacGOG only edits bottles it created.
+- [x] Stop ends the bottle's programs; the game counts as running until all its processes exit.
+- [x] Cloud saves for Windows games resolve inside the game's bottle (Windows user `crossover`).
+- [ ] **(library)** Run GOG's post-install scripts (`goggame-<id>.script`: `setIni`, registry keys, support folders) and dependency installers (DirectX, Visual C++) in the bottle or prefix after installing. Many Windows games, such as Beneath a Steel Sky, don't start without them; this applies to plain Wine too.
+
+Notes:
+
+- Found by testing CrossOver 26.3: a bottle's `cxbottle.conf` environment overrides the launching process's, so graphics settings live in the bottle; `--cx-app` only finds programs inside the bottle, so the game goes after `--` as a Mac path; `wine` waits only for the first process unless given `--wait-children`; bottles ignore `WINEPREFIX`.
+- Tried for real: Play created a bottle and ran Beneath a Steel Sky's Windows build in it with the right working directory and arguments; the game exited because its post-install script hadn't run (see the open item).
+
 ## M7. Release
 
 - [ ] Release configuration: Developer ID signing, notarization script (`notarytool`, `stapler`), and a DMG or ZIP.

@@ -2,6 +2,14 @@ import Foundation
 import Observation
 import SwiftyGOG
 
+/// What runs Windows games.
+enum WindowsRunner: String, CaseIterable, Sendable {
+    /// A CrossOver bottle per game.
+    case crossOver
+    /// A Wine binary of the user's choice, with a prefix per game.
+    case wine
+}
+
 /// User preferences, stored in `UserDefaults`.
 @MainActor @Observable final class AppSettings {
     private enum Key {
@@ -15,6 +23,10 @@ import SwiftyGOG
         static let wrapper = "launchWrapper"
         static let syncSaves = "syncSavesAroundLaunch"
         static let checkUpdates = "checkUpdatesAtLaunch"
+        static let runner = "windowsRunner"
+        static let graphics = "crossOverGraphics"
+        static let msync = "crossOverMSync"
+        static let metalFX = "crossOverMetalFX"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -66,6 +78,20 @@ import SwiftyGOG
         didSet { defaults.set(checkUpdatesAtLaunch, forKey: Key.checkUpdates) }
     }
 
+    /// `nil` until the user picks one; then CrossOver is used when it's installed.
+    var windowsRunner: WindowsRunner? {
+        didSet { defaults.set(windowsRunner?.rawValue, forKey: Key.runner) }
+    }
+
+    /// Settings for bottles MacGOG creates.
+    var newBottleSettings: CrossOverSettings {
+        didSet {
+            defaults.set(newBottleSettings.graphics?.rawValue, forKey: Key.graphics)
+            defaults.set(newBottleSettings.msync, forKey: Key.msync)
+            defaults.set(newBottleSettings.metalFX, forKey: Key.metalFX)
+        }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         libraryFolder =
@@ -82,6 +108,14 @@ import SwiftyGOG
         launchWrapper = defaults.string(forKey: Key.wrapper) ?? ""
         syncSavesAroundLaunch = defaults.object(forKey: Key.syncSaves) as? Bool ?? true
         checkUpdatesAtLaunch = defaults.object(forKey: Key.checkUpdates) as? Bool ?? true
+        windowsRunner = defaults.string(forKey: Key.runner).flatMap(WindowsRunner.init(rawValue:))
+        newBottleSettings = CrossOverSettings(
+            graphics: defaults.string(forKey: Key.graphics).flatMap(
+                CrossOverSettings.Graphics.init(rawValue:)
+            ),
+            msync: defaults.object(forKey: Key.msync) as? Bool ?? true,
+            metalFX: defaults.object(forKey: Key.metalFX) as? Bool ?? false
+        )
     }
 
     /// Whether `winePath` names an executable file.

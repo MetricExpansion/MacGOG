@@ -10,6 +10,7 @@ MacGOGApp (@main, SwiftUI App)
      ├─ InstallRegistry   which folders hold installed games (persisted)
      ├─ DownloadQueue     install/update/repair jobs and their progress
      ├─ LaunchController  running games
+     ├─ CrossOverModel    CrossOver bottles, and which game uses which
      ├─ CloudSaveModel    save locations, sync state, conflicts
      └─ AppSettings       library folder, Wine path, defaults (UserDefaults)
 ```
@@ -100,7 +101,7 @@ MacGOGTests/      Swift Testing suites, fixtures (fake HTTPTransport, in-memory 
   2. Call `GameLauncher.command`, then run `GameLauncher.run` in a task keyed by product ID.
   3. Mark the game Running until the task returns.
   4. **Stop** cancels the task, which terminates the process.
-- Windows games need a configured Wine binary. Grey out Play with an explanation until one is set.
+- Windows games run in a CrossOver bottle (`CrossOverModel`, one bottle per game, created on first play) or through a configured Wine binary with a prefix per game. Play is greyed out with an explanation until one is available. `LaunchController.windowsEnvironment(for:)` tells cloud saves where the game's `C:` drive is.
 - Verify macOS game launching early with a real game. GOG macOS depots are app bundles, and `/usr/bin/env` may not be the right way to start them (Roadmap M5).
 
 ## Cloud saves

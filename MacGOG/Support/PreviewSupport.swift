@@ -76,10 +76,18 @@
              "content_system_compatibility": {"windows": true, "osx": true, "linux": false},
              "description": {"lead": "<p>Become The Witcher, Geralt of Rivia, a legendary monster slayer.</p>",
                "full": "<p>Become <b>The Witcher</b>, Geralt of Rivia, a legendary monster slayer caught in a web of intrigue.</p><ul><li>Over 200 new animations</li><li>Improved dialogue</li></ul>"},
-             "expanded_dlcs": [{"id": 1207659900, "title": "Adventure Pack", "images": {"icon": "//images-1.gog-statics.com/dlc_icon.png"}}],
+             "expanded_dlcs": [{"id": 1207659900, "title": "Adventure Pack", "images": {"icon": "//images-1.gog-statics.com/dlc_icon.png"}},
+               {"id": 1207659901, "title": "Soundtrack Edition", "images": {}}],
+             "languages": {"en": "English", "fr": "français", "de": "Deutsch", "pl": "polski"},
+             "links": {"product_card": "https://www.gog.com/game/the_witcher", "forum": "https://www.gog.com/forum/the_witcher",
+               "support": "https://www.gog.com/support/the_witcher"},
+             "changelog": "<h4>Update 1.5.1</h4><ul><li>Fixed a crash when loading saves</li><li>Improved controller support</li></ul>",
              "downloads": {"installers": [
-               {"os": "mac", "language": "en"}, {"os": "windows", "language": "en"},
-               {"os": "windows", "language": "fr"}, {"os": "windows", "language": "de"}]}}
+               {"os": "mac", "language": "en", "total_size": 9000000000}, {"os": "windows", "language": "en", "total_size": 10177478656},
+               {"os": "windows", "language": "fr"}, {"os": "windows", "language": "de"}],
+               "bonus_content": [{"name": "manual", "type": "manuals", "count": 1, "total_size": 12582912},
+                 {"name": "soundtrack (MP3)", "type": "audio", "count": 2, "total_size": 180000000},
+                 {"name": "artbook", "type": "artworks", "count": 1, "total_size": 76546048}]}}
             """,
             "/products/\(gwentID)": """
             {"id": 1971477531, "title": "Gwent: The Witcher Card Game", "images": {},
@@ -98,6 +106,21 @@
             {"items": [{"build_id": "7", "generation": 2, "branch": null, "version_name": "9.6", "public": true},
               {"build_id": "8", "generation": 2, "branch": "beta", "version_name": "9.7-beta", "public": true}],
              "has_private_branches": true}
+            """,
+            "/platforms/gog/external_releases/\(witcherID)": """
+            {"game": {"summary": {"*": "Become Geralt of Rivia, a monster slayer caught in a web of intrigue."},
+              "first_release_date": "2007-10-26T00:00:00+0000",
+              "background": {"url_format": "https://images.gog.com/witcher-hero{formatter}.{ext}"},
+              "screenshots": [{"url_format": "https://images.gog.com/witcher-shot-1{formatter}.{ext}"},
+                {"url_format": "https://images.gog.com/witcher-shot-2{formatter}.{ext}"},
+                {"url_format": "https://images.gog.com/witcher-shot-3{formatter}.{ext}"}],
+              "artworks": [{"url_format": "https://images.gog.com/witcher-art-1{formatter}.{ext}"}],
+              "videos": [{"provider": "youtube", "video_id": "preview1", "name": "Launch Trailer"},
+                {"provider": "youtube", "video_id": "preview2", "name": "Gameplay"}],
+              "developers": [{"name": "CD PROJEKT RED"}], "publishers": [{"name": "CD PROJEKT"}],
+              "genres": [{"name": {"*": "Role-playing (RPG)"}}, {"name": {"*": "Adventure"}}],
+              "themes": [{"name": {"*": "Fantasy"}}], "game_modes": [{"name": "Single player"}],
+              "series": {"name": "The Witcher"}, "aggregated_rating": 86.2}}
             """,
             "/components/galaxy_client/clients/12345": """
             {"content": {"MacOS": {"cloudStorage": {"enabled": true, "locations": [

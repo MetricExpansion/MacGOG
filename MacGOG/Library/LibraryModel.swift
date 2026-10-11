@@ -54,21 +54,22 @@ import SwiftyGOG
         }
     }
 
-    /// Galaxy artwork fetched so far, by product ID.
-    private(set) var artwork: [String: GameArtwork] = [:]
-    @ObservationIgnored private var artworkTasks: [String: Task<GameArtwork, any Error>] = [:]
+    /// Galaxy's database entries fetched so far, by product ID.
+    private(set) var galaxy: [String: GalaxyGame] = [:]
+    @ObservationIgnored private var galaxyTasks: [String: Task<GalaxyGame, any Error>] = [:]
 
-    /// Galaxy's hero art and covers for a product, fetched once. Artwork is decoration, so a failure
-    /// returns `nil` and is retried next time.
-    func artwork(for id: String) async -> GameArtwork? {
-        if let cached = artwork[id] {
+    /// Galaxy's artwork, media, and credits for a product, fetched once. They're extras on top of
+    /// the store details, so a failure returns `nil` and is retried next time.
+    @discardableResult
+    func galaxyGame(for id: String) async -> GalaxyGame? {
+        if let cached = galaxy[id] {
             return cached
         }
-        let task = artworkTasks[id] ?? Task { [client] in try await client.artwork(id) }
-        artworkTasks[id] = task
-        defer { artworkTasks[id] = nil }
+        let task = galaxyTasks[id] ?? Task { [client] in try await client.galaxyGame(id) }
+        galaxyTasks[id] = task
+        defer { galaxyTasks[id] = nil }
         guard let fetched = try? await task.value else { return nil }
-        artwork[id] = fetched
+        galaxy[id] = fetched
         return fetched
     }
 

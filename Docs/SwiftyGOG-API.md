@@ -36,6 +36,8 @@ The dictionary is keyed by OAuth client ID. Besides the main account entry, it h
 - `client.ownedGames() -> [String]` returns every owned product ID, including DLC.
 - `client.buildList(id, platform:password:) -> BuildList` returns `builds: [GameBuild]`, newest first (`id`, `version`, `branch`, `generation`, `published`, `publishedDate`, `isPublic`), plus `hasPrivateBranches`. It doesn't work for `.linux`, which uses installers. Set `DownloadOptions.build` to a build's `id` to install that build, older ones included; `Installation.update(options:)` with it downgrades or upgrades in place.
 - `client.productDetails(id) -> ProductDetails`: title, `images` (logo, background, icon), `lead`/`fullDescription` HTML, `releaseDate`, `platforms`, `dlcs: [ProductDLC]`, and `languages(for: platform) -> [Language]` from the installers. Unauthenticated.
+  It also has `changelog` (HTML), `supportedLanguages`, `links` (store, support, forum), `extras` (goodies), `installerSizes` per platform, and `isInDevelopment`.
+- `client.galaxyGame(id) -> GalaxyGame`: Galaxy's public game database. Unfaded hero art (`background`), `verticalCover`, `screenshots` and `artworks` (`GalaxyImage` with `thumbnail` and `full`), `videos` (YouTube `url`), `summary`, `developers`, `publishers`, `genres`, `themes`, `gameModes`, `series`, `rating` (0–100), and `releaseDate`. Unauthenticated. Use it, not `ProductImages.background`, for hero art: the store image fades to light grey.
 - `OwnedGame.imageURL`: the 392×220 library tile.
 - `client.product(id)` and `client.gameDetails(id)` return raw `JSONValue`. **Don't use them in the app.** Add typed models to the library instead.
 

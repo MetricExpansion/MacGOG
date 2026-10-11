@@ -17,6 +17,7 @@ MacGOG links SwiftyGOG, which is GPL-3.0, so MacGOG is GPL-3.0 and its source mu
 - The app keeps its own OAuth credentials in the **Keychain**, through a `KeychainCredentialStore` that conforms to SwiftyGOG's `CredentialStore`.
 - The app never reads the CLI's token file (`~/Library/Application Support/SwiftyGOG/auth.json`), `AUTH_PATH`, or `GOG_ACCESS_TOKEN`.
 - Signing out of one doesn't affect the other.
+- **Development exception (Debug builds only):** `MACGOG_CLI_AUTH=1` or `-UseCLIAuth YES` makes the app use the CLI's default token file (never `AUTH_PATH`), so it can be tried against a real account. Sign Out in that mode doesn't delete the CLI's credentials. Release builds don't contain this code.
 
 ## In-process library, not a subprocess
 

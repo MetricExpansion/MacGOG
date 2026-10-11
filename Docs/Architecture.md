@@ -10,7 +10,8 @@ MacGOGApp (@main, SwiftUI App)
      ├─ InstallRegistry   which folders hold installed games (persisted)
      ├─ DownloadQueue     install/update/repair jobs and their progress
      ├─ LaunchController  running games
-     └─ Settings          library folder, Wine path, defaults (UserDefaults)
+     ├─ CloudSaveModel    save locations, sync state, conflicts
+     └─ AppSettings       library folder, Wine path, defaults (UserDefaults)
 ```
 
 Inject `AppModel`, or the individual models, through the SwiftUI environment (`.environment(model)`). Views never create a `GOGClient`, `Downloader`, or `ManifestService`; they call model methods.
@@ -57,7 +58,7 @@ MacGOGTests/      Swift Testing suites, fixtures (fake HTTPTransport, in-memory 
 ## Library
 
 - `LibraryModel.refresh()` calls `client.searchLibrary(nil)` and stores `[OwnedGame]`. Search filters locally for responsiveness, and can also call `searchLibrary(text)`.
-- Artwork, descriptions, and per-game languages need typed product details in SwiftyGOG (Roadmap M2). Until then, show the title and platform badges.
+- `LibraryModel.details(for:)` fetches `client.productDetails(id)` once per game: artwork, description, DLC, platforms, and installer languages. Library tiles use `OwnedGame.imageURL`.
 - Join the library with `InstallRegistry` by product ID to show Installed, Update available, or Not installed.
 
 ## Install registry
@@ -104,7 +105,7 @@ MacGOGTests/      Swift Testing suites, fixtures (fake HTTPTransport, in-memory 
 
 ## Cloud saves
 
-See Roadmap M6. It needs library work to find save locations. The app will run a dry-run sync before launch and after exit, show conflicts, and store the per-game `since` timestamp in app state.
+`CloudSaveModel` finds a game's save locations with `CloudSaves.locations` (Windows games map into their Wine prefix). Before launch and after exit it runs a dry-run sync per location, asks the user to keep local or cloud saves on a conflict, then applies. It stores each location's `since` timestamp in `cloudsaves.json`.
 
 ## Error presentation
 

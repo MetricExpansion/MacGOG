@@ -35,7 +35,9 @@ The dictionary is keyed by OAuth client ID. Besides the main account entry, it h
 - `client.searchLibrary(_ text: String? = nil) -> [OwnedGame]` returns owned games (`id`, `title`, `platforms`), excluding DLC. `nil` or empty text lists everything. Pages are fetched internally.
 - `client.ownedGames() -> [String]` returns every owned product ID, including DLC.
 - `client.buildList(id, platform:password:) -> BuildList` returns `builds: [GameBuild]`, newest first (`id`, `version`, `branch`, `generation`, `published`, `isPublic`), plus `hasPrivateBranches`. It doesn't work for `.linux`, which uses installers.
-- `client.product(id)` and `client.gameDetails(id)` return raw `JSONValue`. **Don't use them in the app.** Add typed models to the library instead (Roadmap M2).
+- `client.productDetails(id) -> ProductDetails`: title, `images` (logo, background, icon), `lead`/`fullDescription` HTML, `releaseDate`, `platforms`, `dlcs: [ProductDLC]`, and `languages(for: platform) -> [Language]` from the installers. Unauthenticated.
+- `OwnedGame.imageURL`: the 392×220 library tile.
+- `client.product(id)` and `client.gameDetails(id)` return raw `JSONValue`. **Don't use them in the app.** Add typed models to the library instead.
 
 ## Planning and installing
 
@@ -85,7 +87,7 @@ try await installation.repair(client: client, progress: …)                // r
 
 - `availableUpdate` compares against the newest build on the installed branch. For Linux it compares installer versions.
 - Installs remember a non-default support folder in `plan.supportPath`. The app doesn't need to track it.
-- `InstalledGame.read(at:)` reads GOG's own metadata (`goggame-*.info`): title, play tasks, DLC IDs. Use it to import a folder installed by Galaxy or the CLI, and for launch information.
+- `InstalledGame.read(at:)` reads GOG's own metadata (`goggame-*.info`): title, play tasks, DLC IDs. Use it to import a folder installed by Galaxy or the CLI, and for launch information. `playTasks: [PlayTask]` types the tasks; pass `task.index` as `LaunchOptions.task`.
 
 ## Launching
 
@@ -96,7 +98,7 @@ let status = try await GameLauncher.run(command)   // waits for exit; cancel the
 ```
 
 - `command` picks the primary play task (or `LaunchOptions.task`) and resolves paths case-insensitively inside the game folder.
-- `run` resolves the executable via `/usr/bin/env` and inherits the app's environment. A macOS `.app` bundle game may need `open -a`-style handling; verify with a real macOS game early (Roadmap M5).
+- `run` resolves the executable via `/usr/bin/env` and inherits the app's environment. When a macOS play task points at an `.app` bundle, `command` runs the bundle's `CFBundleExecutable`.
 
 ## Cloud saves
 
@@ -109,7 +111,7 @@ let preview = try await saves.sync(id: id, platform: .osx, root: saveFolder, nam
 
 - Run with `dryRun: false` and the user's chosen `SavePreference` (`.forceUpload` or `.forceDownload` resolves a conflict) to apply. After a successful non-dry run, store `Date().timeIntervalSince1970` as the game's new `since` value. If `direction == .none`, keep the old one.
 - Without a forced preference, a conflict throws `.cloudSaves(.conflict)`.
-- **Gap:** the library doesn't yet work out *where* a game's saves live (`root`). See Roadmap M6.
+- `saves.locations(id:platform:installation:winePrefix:)` returns `[SaveLocation]` (`name`, `url`) from Galaxy's remote config; pass each as `sync(root: location.url, name: location.name)`. Empty when the game has no cloud saves on that platform.
 
 ## Errors: `GOGError`
 

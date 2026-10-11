@@ -139,6 +139,8 @@ import UserNotifications
             folder: job.folder,
             title: library.game(job.productID)?.title ?? job.title
         )
+        // An install or change may have left an older build in place.
+        await registry.checkForUpdate(job.productID, client: client)
     }
 
     /// Syncs saves before a game starts and after it exits. A failure is shown but never blocks play.

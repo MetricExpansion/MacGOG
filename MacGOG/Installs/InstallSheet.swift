@@ -1,13 +1,27 @@
 import SwiftUI
 import SwiftyGOG
 
-/// Chooses platform, language, DLC, branch, and destination, shows the planned sizes, and queues
-/// the job.
+/// Chooses platform, language, DLC, branch, build, and destination, shows the planned sizes, and
+/// queues the job. Choosing an older build of an installed game downgrades it.
 struct InstallSheet: View {
+    /// A build to preselect, such as one picked from a game's build list.
+    struct BuildRequest: Hashable {
+        let platform: GamePlatform
+        let id: String
+    }
+
+    /// What a sheet is opened for.
+    struct Request: Identifiable {
+        let mode: Mode
+        var build: BuildRequest?
+
+        var id: String { "\(mode.id)-\(build?.id ?? "latest")" }
+    }
+
     enum Mode: Identifiable {
         /// A new install into the library folder.
         case install
-        /// An update of an installed game with different language or DLC choices.
+        /// An update or downgrade of an installed game, optionally with different language or DLC.
         case modify(InstalledGameRecord)
         /// Installs over an existing folder, such as one from Galaxy or one with a damaged manifest.
         case adopt(InstalledGameRecord)
@@ -24,6 +38,7 @@ struct InstallSheet: View {
     let id: String
     let title: String
     let mode: Mode
+    var requestedBuild: BuildRequest?
 
     @Environment(AppModel.self) private var model
     @Environment(AppSettings.self) private var settings
@@ -38,34 +53,52 @@ struct InstallSheet: View {
     @State private var libraryFolder = URL.homeDirectory
     @State private var details: ProductDetails?
     @State private var branches: [String] = []
+    /// Every build for the platform, newest first.
+    @State private var buildList: BuildList?
+    /// `nil` installs the newest build on the branch.
+    @State private var selectedBuild: String?
+    @State private var appliedRequest = false
     @State private var hasPrivateBranches = false
-    @State private var plan: InstallPlan?
+    /// The latest plan and the choices it was made for.
+    @State private var planned: (inputs: PlanInputs, plan: InstallPlan)?
     @State private var planError: PresentableError?
     @State private var confirmError: PresentableError?
     @State private var isReady = false
 
     private struct PlanInputs: Hashable {
+        let isReady: Bool
         let platform: GamePlatform
         let language: String
         let dlcs: Set<String>
         let branch: String?
+        let build: String?
         let password: String
     }
 
     private var inputs: PlanInputs {
         PlanInputs(
+            isReady: isReady,
             platform: platform,
             language: language,
             dlcs: selectedDLCs,
             branch: branch,
+            build: selectedBuild,
             password: password
         )
+    }
+
+    /// The plan for the current choices; `nil` while they're being planned, so an earlier plan is
+    /// never shown or installed for newer choices.
+    private var plan: InstallPlan? {
+        guard let planned, planned.inputs == inputs else { return nil }
+        return planned.plan
     }
 
     private var options: DownloadOptions {
         DownloadOptions(
             platform: platform,
             language: language,
+            build: selectedBuild,
             branch: branch,
             password: password.isEmpty ? nil : password,
             includeDLCs: !selectedDLCs.isEmpty,
@@ -91,6 +124,21 @@ struct InstallSheet: View {
         }
         let listed = details?.platforms ?? library.game(id)?.platforms ?? []
         return listed.isEmpty ? GamePlatform.allCases : listed
+    }
+
+    /// Builds on the chosen branch, newest first.
+    private var branchBuilds: [GameBuild] {
+        (buildList?.builds ?? []).filter { $0.branch == branch }
+    }
+
+    private var installedBuildID: String? {
+        if case .modify(let record) = mode { record.installation?.plan.buildID } else { nil }
+    }
+
+    /// Whether the chosen build is older than the installed one.
+    private var isDowngrade: Bool {
+        guard let target = selectedBuild ?? branchBuilds.first?.id, let installedBuildID else { return false }
+        return buildList?.isBuild(target, olderThan: installedBuildID) ?? false
     }
 
     private var languages: [Language] {
@@ -142,9 +190,24 @@ struct InstallSheet: View {
                                 Text(branch).tag(String?.some(branch))
                             }
                         }
+                        if !branchBuilds.isEmpty {
+                            Picker("Build", selection: $selectedBuild) {
+                                Text("Latest (\(branchBuilds.first.map(label) ?? ""))").tag(String?.none)
+                                Divider()
+                                ForEach(branchBuilds, id: \.id) { build in
+                                    Text(label(build)).tag(String?.some(build.id))
+                                }
+                            }
+                        }
                         if hasPrivateBranches || !password.isEmpty {
                             SecureField("Branch password", text: $password)
                         }
+                    }
+                } footer: {
+                    if isDowngrade {
+                        Text(
+                            "This installs an older build. MacGOG keeps offering the newest build as an update."
+                        )
                     }
                 }
                 if !ownedDLCs.isEmpty {
@@ -215,6 +278,11 @@ struct InstallSheet: View {
         .task { await prepare() }
         .task(id: inputs) { await replan() }
         .task(id: BranchQuery(platform: platform, password: password)) { await loadBranches() }
+        .onChange(of: branch) {
+            if let selectedBuild, !branchBuilds.contains(where: { $0.id == selectedBuild }) {
+                self.selectedBuild = nil
+            }
+        }
         .onChange(of: platform) {
             if !languages.contains(where: { $0.code == language }), let first = languages.first {
                 language = first.code
@@ -226,7 +294,7 @@ struct InstallSheet: View {
         if let plan {
             LabeledContent("Download", value: plan.downloadSize.formattedBytes)
             LabeledContent("Size on disk", value: plan.diskSize.formattedBytes)
-            if let version = plan.version {
+            if let version = plan.version.flatMap({ $0.isEmpty ? nil : $0 }) ?? plan.buildID {
                 LabeledContent("Version", value: version)
             }
             if let available = destination?.availableCapacity {
@@ -244,10 +312,32 @@ struct InstallSheet: View {
 
     private var confirmTitle: String {
         switch mode {
-        case .install: "Install"
-        case .modify: "Update"
-        case .adopt: "Verify"
+        case .install:
+            return "Install"
+        case .adopt:
+            return "Verify"
+        case .modify:
+            let target = selectedBuild ?? branchBuilds.first?.id
+            if target != nil, target == installedBuildID {
+                return "Apply"
+            }
+            return isDowngrade ? "Downgrade" : "Update"
         }
+    }
+
+    /// A build's version, date, and whether it's installed, for the picker.
+    private func label(_ build: GameBuild) -> String {
+        var parts = [build.version ?? "Build \(build.id)"]
+        if let date = build.publishedDate {
+            parts.append(date.formatted(date: .abbreviated, time: .omitted))
+        }
+        if build.generation == 1 {
+            parts.append("legacy")
+        }
+        if build.id == installedBuildID {
+            parts.append("installed")
+        }
+        return parts.joined(separator: " · ")
     }
 
     /// Sets the starting choices from settings or the installed game.
@@ -263,7 +353,6 @@ struct InstallSheet: View {
                 platform = options.platform
                 language = options.language
                 branch = options.branch
-                selectedDLCs = options.dlcIDs
             }
         case .adopt(let record):
             if let platform = record.platform {
@@ -273,7 +362,9 @@ struct InstallSheet: View {
                 language = code
             }
         }
-        if case .install = mode {
+        if let requestedBuild, !isModifying {
+            platform = requestedBuild.platform
+        } else if case .install = mode {
             let listed = library.game(id)?.platforms ?? []
             platform =
                 if listed.contains(settings.defaultPlatform) {
@@ -289,26 +380,36 @@ struct InstallSheet: View {
         } catch {
             await model.handle(error, retry: nil)
         }
-        // New installs and adoptions take every owned DLC unless the user deselects some.
-        if !isModifying {
-            selectedDLCs = Set(ownedDLCs.map(\.id))
-        }
+        selectedDLCs = initialDLCs()
         if !languages.contains(where: { $0.code == language }), let first = languages.first {
             language = first.code
         }
         isReady = true
     }
 
+    /// The DLC to start with: the installed selection when changing a game, otherwise every owned
+    /// DLC. Saved choices list no IDs when every owned DLC was included.
+    private func initialDLCs() -> Set<String> {
+        let owned = Set(ownedDLCs.map(\.id))
+        guard case .modify(let record) = mode, let options = record.installation?.options else {
+            return owned
+        }
+        guard options.includeDLCs else { return [] }
+        return options.dlcIDs.isEmpty ? owned : options.dlcIDs
+    }
+
     private func replan() async {
         guard isReady else { return }
-        plan = nil
+        let requested = inputs
         planError = nil
         confirmError = nil
         // Let quick successive changes settle before asking GOG.
         try? await Task.sleep(for: .milliseconds(300))
         guard !Task.isCancelled else { return }
         do {
-            plan = try await ManifestService(client: model.client).plan(id, options: options)
+            let plan = try await ManifestService(client: model.client).plan(id, options: options)
+            guard !Task.isCancelled else { return }
+            planned = (requested, plan)
         } catch {
             guard !Task.isCancelled else { return }
             if await model.session.handle(error) {
@@ -333,8 +434,10 @@ struct InstallSheet: View {
             )
         else {
             branches = []
+            buildList = nil
             return
         }
+        buildList = list
         var seen: [String] = []
         for build in list.builds {
             if let branch = build.branch, !seen.contains(branch) {
@@ -345,6 +448,14 @@ struct InstallSheet: View {
         hasPrivateBranches = list.hasPrivateBranches
         if let branch, !seen.contains(branch) {
             self.branch = nil
+        }
+        // Preselect a requested build once, on its branch.
+        if !appliedRequest, let requestedBuild, requestedBuild.platform == platform {
+            appliedRequest = true
+            if let build = list.builds.first(where: { $0.id == requestedBuild.id }) {
+                branch = build.branch
+                selectedBuild = build.id
+            }
         }
     }
 
@@ -372,5 +483,18 @@ struct InstallSheet: View {
     #Preview("Install") {
         InstallSheet(id: PreviewData.witcherID, title: "The Witcher: Enhanced Edition", mode: .install)
             .modelEnvironment(.preview(installed: false))
+    }
+
+    #Preview("Downgrade") {
+        let model = AppModel.preview()
+        if let record = model.registry.record(for: PreviewData.witcherID) {
+            InstallSheet(
+                id: PreviewData.witcherID,
+                title: "The Witcher: Enhanced Edition",
+                mode: .modify(record),
+                requestedBuild: InstallSheet.BuildRequest(platform: .osx, id: "54")
+            )
+            .modelEnvironment(model)
+        }
     }
 #endif

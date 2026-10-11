@@ -46,6 +46,7 @@ import SwiftyGOG
     var verb: String {
         switch kind {
         case .install: "Install"
+        case .update(_, let options) where options?.build != nil: "Version change"
         case .update: "Update"
         case .repair: "Repair"
         }
@@ -250,7 +251,7 @@ struct QueueHooks {
                     job.state = .paused
                 } else if let presentable = presentableError(error) {
                     job.state = .failed(presentable)
-                    hooks.notify("\(job.title) couldn't \(job.verb.lowercased())", presentable.message)
+                    hooks.notify("\(job.verb) of \(job.title) failed", presentable.message)
                     if requiresSignIn(error) {
                         await onSessionEnded?()
                     }
@@ -356,6 +357,8 @@ nonisolated struct SavedJob: Codable, Sendable {
 nonisolated struct SavedOptions: Codable, Sendable {
     let platform: GamePlatform
     let language: String
+    /// A pinned build, such as an older one to downgrade to; `nil` for the newest.
+    let build: String?
     let branch: String?
     let generation: Int
     let includeDLCs: Bool
@@ -365,6 +368,7 @@ nonisolated struct SavedOptions: Codable, Sendable {
     init(_ options: DownloadOptions) {
         platform = options.platform
         language = options.language
+        build = options.build
         branch = options.branch
         generation = options.generation
         includeDLCs = options.includeDLCs
@@ -376,6 +380,7 @@ nonisolated struct SavedOptions: Codable, Sendable {
         DownloadOptions(
             platform: platform,
             language: language,
+            build: build,
             branch: branch,
             generation: generation,
             includeDLCs: includeDLCs,

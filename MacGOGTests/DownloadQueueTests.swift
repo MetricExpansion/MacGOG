@@ -21,7 +21,7 @@ import Testing
         let second = model.downloads.enqueue(
             .update(
                 folder: folder.url.appending(path: "Tyrian"),
-                options: DownloadOptions(platform: .windows, language: "fr-FR")
+                options: DownloadOptions(platform: .windows, language: "fr-FR", build: "54")
             ),
             productID: PreviewData.tyrianID,
             title: "Tyrian"
@@ -44,5 +44,7 @@ import Testing
         }
         #expect(options?.language == "fr-FR")
         #expect(options?.platform == .windows)
+        #expect(options?.build == "54")
+        #expect(restored.verb == "Version change")
     }
 }

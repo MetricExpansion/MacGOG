@@ -69,6 +69,7 @@ Notes:
 Notes:
 
 - Uninstall moves the folder to the Trash rather than deleting it. The library's safe `uninstall` is still open.
+- Any build can be installed, or an installed game moved to it: a Build picker in the install sheet (filtered by branch, "Latest" by default), and Install/Update/Downgrade buttons in the game page's build list. This uses `DownloadOptions.build`; the chosen build is saved with queued jobs. A downgraded game keeps showing the newest build as an update, since SwiftyGOG doesn't save a pinned build. Tried against a real account: Beneath a Steel Sky installed at a 2016 legacy build, upgraded to 1.0, and downgraded to a 2014 build.
 - A game folder with a damaged manifest offers Reinstall, which installs over the folder; Galaxy installs offer Verify with GOG, which does the same with their platform and language.
 
 ## M5. Launching

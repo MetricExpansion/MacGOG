@@ -38,8 +38,12 @@ nonisolated struct InstalledGameRecord: Sendable, Identifiable {
         installation?.plan.platform ?? info?.platform
     }
 
+    /// GOG's version name, or the build ID for builds without one.
     var version: String? {
-        installation?.plan.version ?? info?.versionName
+        if let name = installation?.plan.version ?? info?.versionName, !name.isEmpty {
+            return name
+        }
+        return (installation?.plan.buildID ?? info?.buildId).map { "Build \($0)" }
     }
 
     var title: String { info?.title ?? entry.title }
@@ -99,6 +103,16 @@ nonisolated struct InstalledGameRecord: Sendable, Identifiable {
 
     func clearUpdate(for productID: String) {
         updates[productID] = nil
+    }
+
+    /// Checks one installation for a newer build, such as after a downgrade. A failed check
+    /// leaves the game without an update badge until the next full check.
+    func checkForUpdate(_ productID: String, client: GOGClient) async {
+        guard let installation = records[productID]?.installation else {
+            updates[productID] = nil
+            return
+        }
+        updates[productID] = (try? await installation.availableUpdate(client: client)) ?? nil
     }
 
     /// Checks every ready installation for a newer build, four at a time. Returns the first error

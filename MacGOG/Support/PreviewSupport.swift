@@ -99,10 +99,18 @@
               {"build_id": "8", "generation": 2, "branch": "beta", "version_name": "9.7-beta", "public": true}],
              "has_private_branches": true}
             """,
+            "/components/galaxy_client/clients/12345": """
+            {"content": {"MacOS": {"cloudStorage": {"enabled": true, "locations": [
+              {"name": "__default", "location": "<?INSTALL?>/saves"}]}},
+             "Windows": {"cloudStorage": {"enabled": false, "locations": []}}}}
+            """,
             "/products/\(witcherID)/os/osx/builds": """
             {"items": [
               {"build_id": "56", "generation": 2, "branch": null, "version_name": "1.5.1", "date_published": "2024-03-01T10:00:00+0000", "public": true},
-              {"build_id": "55", "generation": 2, "branch": null, "version_name": "1.5", "date_published": "2023-06-01T10:00:00+0000", "public": true}
+              {"build_id": "55", "generation": 2, "branch": null, "version_name": "1.5", "date_published": "2023-06-01T10:00:00+0000", "public": true},
+              {"build_id": "57", "generation": 2, "branch": "beta", "version_name": "1.6-beta", "date_published": "2024-05-01T10:00:00+0000", "public": true},
+              {"build_id": "54", "generation": 2, "branch": null, "version_name": "1.4", "date_published": "2022-02-01T10:00:00+0000", "public": true},
+              {"build_id": "12", "generation": 1, "branch": null, "version_name": "1.0", "date_published": "2012-09-01T10:00:00+0000", "public": true}
             ], "has_private_branches": false}
             """,
         ]
@@ -148,7 +156,7 @@
             )
             try JSONEncoder().encode(witcherPlan).write(to: root.appending(path: ".gogdl/manifest.json"))
             let info = """
-                {"gameId": "\(witcherID)", "rootGameId": "\(witcherID)", "name": "The Witcher: Enhanced Edition",
+                {"gameId": "\(witcherID)", "rootGameId": "\(witcherID)", "clientId": "12345", "name": "The Witcher: Enhanced Edition",
                  "languages": ["en-US"], "playTasks": [
                    {"type": "FileTask", "name": "The Witcher", "path": "Contents/MacOS/Witcher", "isPrimary": true, "category": "game"},
                    {"type": "FileTask", "name": "Configuration", "path": "Contents/MacOS/Config", "category": "tool"},

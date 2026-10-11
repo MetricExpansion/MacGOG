@@ -10,7 +10,7 @@ struct GameDetailView: View {
     @Environment(InstallRegistry.self) private var registry
     @State private var details: ProductDetails?
     @State private var detailsError: PresentableError?
-    @State private var sheet: InstallSheet.Mode?
+    @State private var sheet: InstallSheet.Request?
 
     private var item: LibraryItem? { model.libraryItems.first { $0.id == id } }
 
@@ -46,11 +46,8 @@ struct GameDetailView: View {
                     if let details, !details.dlcs.isEmpty {
                         DLCSection(details: details)
                     }
-                    if let platform = record?.platform ?? details?.platforms.first(where: { $0 == .osx })
-                        ?? details?.platforms.first,
-                        platform != .linux
-                    {
-                        BuildsSection(id: id, platform: platform)
+                    if !buildPlatforms(record: record).isEmpty {
+                        BuildsSection(id: id, platforms: buildPlatforms(record: record), sheet: $sheet)
                     }
                 }
                 .padding(24)
@@ -58,9 +55,24 @@ struct GameDetailView: View {
         }
         .navigationTitle(details?.title ?? item?.title ?? record?.title ?? "")
         .task(id: id) { await loadDetails() }
-        .sheet(item: $sheet) { mode in
-            InstallSheet(id: id, title: details?.title ?? item?.title ?? record?.title ?? "", mode: mode)
+        .sheet(item: $sheet) { request in
+            InstallSheet(
+                id: id,
+                title: details?.title ?? item?.title ?? record?.title ?? "",
+                mode: request.mode,
+                requestedBuild: request.build
+            )
         }
+    }
+
+    /// Platforms whose builds can be listed: the installed one, or every non-Linux platform the
+    /// game ships on, macOS first. Linux games ship installers, which have no build list.
+    private func buildPlatforms(record: InstalledGameRecord?) -> [GamePlatform] {
+        if let platform = record?.platform {
+            return platform == .linux ? [] : [platform]
+        }
+        let listed = details?.platforms ?? item?.platforms ?? []
+        return [GamePlatform.osx, .windows].filter(listed.contains)
     }
 
     private func loadDetails() async {
@@ -113,7 +125,7 @@ private struct GameHeader: View {
 /// The main buttons for a game, which depend on its installation status.
 private struct GameActions: View {
     let id: String
-    @Binding var sheet: InstallSheet.Mode?
+    @Binding var sheet: InstallSheet.Request?
 
     @Environment(AppModel.self) private var model
     @Environment(DownloadQueue.self) private var downloads
@@ -126,7 +138,7 @@ private struct GameActions: View {
         HStack(spacing: 12) {
             switch model.status(of: id) {
             case .notInstalled:
-                Button("Install…") { sheet = .install }
+                Button("Install…") { sheet = InstallSheet.Request(mode: .install) }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
             case .installing(let job):
@@ -150,7 +162,7 @@ private struct GameActions: View {
             case .foreign:
                 if let record {
                     PlayButton(record: record)
-                    Button("Verify with GOG…") { sheet = .adopt(record) }
+                    Button("Verify with GOG…") { sheet = InstallSheet.Request(mode: .adopt(record)) }
                         .controlSize(.large)
                         .help("Check this game's files against GOG so MacGOG can update and repair it.")
                     moreMenu(record)
@@ -162,7 +174,7 @@ private struct GameActions: View {
                         systemImage: "exclamationmark.triangle.fill"
                     )
                     .foregroundStyle(.orange)
-                    Button("Reinstall…") { sheet = .adopt(record) }
+                    Button("Reinstall…") { sheet = InstallSheet.Request(mode: .adopt(record)) }
                         .buttonStyle(.borderedProminent)
                     moreMenu(record)
                 }
@@ -199,7 +211,9 @@ private struct GameActions: View {
         Menu {
             if record.installation != nil {
                 Button("Verify and Repair") { model.repair(record) }
-                Button("Change Language or DLC…") { sheet = .modify(record) }
+                Button("Change Version, Language, or DLC…") {
+                    sheet = InstallSheet.Request(mode: .modify(record))
+                }
             }
             Button("Show in Finder") {
                 NSWorkspace.shared.activateFileViewerSelecting([record.entry.folder])
@@ -435,62 +449,148 @@ private struct DLCSection: View {
     }
 }
 
+/// Every build GOG offers for a platform, with buttons to install, update to, or downgrade to one.
 private struct BuildsSection: View {
     let id: String
-    let platform: GamePlatform
+    /// The platforms to choose between; the first is shown first.
+    let platforms: [GamePlatform]
+    @Binding var sheet: InstallSheet.Request?
 
     @Environment(AppModel.self) private var model
+    @Environment(InstallRegistry.self) private var registry
+    @Environment(DownloadQueue.self) private var downloads
+    @State private var platform: GamePlatform?
     @State private var builds: BuildList?
     @State private var failed = false
+    @State private var showsAll = false
+
+    /// Builds shown before "Show All".
+    private static let shortListLength = 8
+
+    private var shownPlatform: GamePlatform { platform ?? platforms.first ?? .osx }
+
+    private var record: InstalledGameRecord? { registry.record(for: id) }
+
+    /// The installed build, when it's for the shown platform.
+    private var installedBuildID: String? {
+        guard let plan = record?.installation?.plan, plan.platform == shownPlatform else { return nil }
+        return plan.buildID
+    }
 
     var body: some View {
-        DetailSection("Builds for \(platform.displayName)") {
-            if let builds {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(builds.builds.prefix(8), id: \.id) { build in
-                        HStack {
-                            Text(build.version ?? "Build \(build.id)")
-                                .monospacedDigit()
-                            if let branch = build.branch {
-                                Text(branch)
-                                    .font(.caption)
-                                    .padding(.horizontal, 6)
-                                    .background(.quaternary, in: .capsule)
-                            }
-                            Spacer()
-                            if let published = build.published.flatMap(Self.date) {
-                                Text(published, format: .dateTime.year().month().day())
-                                    .foregroundStyle(.secondary)
-                            }
+        DetailSection("Builds") {
+            VStack(alignment: .leading, spacing: 8) {
+                if platforms.count > 1 {
+                    Picker("Platform", selection: Binding(get: { shownPlatform }, set: { platform = $0 })) {
+                        ForEach(platforms, id: \.self) { platform in
+                            Text(platform.displayName).tag(platform)
                         }
                     }
-                    if builds.hasPrivateBranches {
-                        Text("Some builds are on password-protected branches.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
                 }
-                .frame(maxWidth: 560)
-            } else if failed {
-                Text("Builds couldn't be loaded.")
-                    .foregroundStyle(.secondary)
-            } else {
-                ProgressView()
-                    .controlSize(.small)
+                if let builds {
+                    list(builds)
+                } else if failed {
+                    Text("Builds couldn't be loaded.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ProgressView()
+                        .controlSize(.small)
+                }
             }
+            .frame(maxWidth: 560, alignment: .leading)
         }
-        .task(id: platform) {
+        .task(id: shownPlatform) {
+            builds = nil
+            failed = false
             do {
-                builds = try await model.client.buildList(id, platform: platform)
+                builds = try await model.client.buildList(id, platform: shownPlatform)
             } catch {
                 failed = true
             }
         }
     }
 
-    private static func date(_ text: String) -> Date? {
-        // GOG writes offsets without a colon (+0000), which ISO8601DateFormatter accepts.
-        ISO8601DateFormatter().date(from: text)
+    private func list(_ builds: BuildList) -> some View {
+        let shown = showsAll ? builds.builds : Array(builds.builds.prefix(Self.shortListLength))
+        return VStack(alignment: .leading, spacing: 6) {
+            ForEach(shown, id: \.id) { build in
+                row(build, in: builds)
+            }
+            if builds.builds.count > Self.shortListLength {
+                Button(showsAll ? "Show Fewer" : "Show All \(builds.builds.count) Builds") {
+                    showsAll.toggle()
+                }
+                .buttonStyle(.link)
+            }
+            if builds.hasPrivateBranches {
+                Text("Some builds are on password-protected branches. Enter the password when installing.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func row(_ build: GameBuild, in list: BuildList) -> some View {
+        HStack {
+            Text(build.version ?? "Build \(build.id)")
+                .monospacedDigit()
+            if let branch = build.branch {
+                badge(branch)
+            }
+            if build.generation == 1 {
+                badge("legacy")
+            }
+            if build.id == installedBuildID {
+                Label("Installed", systemImage: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+            }
+            Spacer()
+            if let published = build.publishedDate {
+                Text(published, format: .dateTime.year().month().day())
+                    .foregroundStyle(.secondary)
+            }
+            if build.id != installedBuildID, let request = request(for: build) {
+                Button(actionTitle(for: build, in: list)) { sheet = request }
+                    .disabled(downloads.job(for: id)?.isActive == true)
+            }
+        }
+    }
+
+    private func badge(_ text: String) -> some View {
+        Text(text)
+            .font(.caption)
+            .padding(.horizontal, 6)
+            .background(.quaternary, in: .capsule)
+    }
+
+    /// "Update…" or "Downgrade…" relative to the installed build, else "Install…".
+    private func actionTitle(for build: GameBuild, in list: BuildList) -> String {
+        switch installedBuildID.flatMap({ list.isBuild(build.id, olderThan: $0) }) {
+        case true?: "Downgrade…"
+        case false?: "Update…"
+        case nil: "Install…"
+        }
+    }
+
+    /// The sheet that installs `build`, or `nil` when it can't be installed from here, such as for
+    /// a missing folder or another platform than the installed one.
+    private func request(for build: GameBuild) -> InstallSheet.Request? {
+        let wanted = InstallSheet.BuildRequest(platform: shownPlatform, id: build.id)
+        guard let record else {
+            return InstallSheet.Request(mode: .install, build: wanted)
+        }
+        switch record.status {
+        case .ready where record.platform == shownPlatform:
+            return InstallSheet.Request(mode: .modify(record), build: wanted)
+        case .foreign, .needsRepair:
+            return InstallSheet.Request(mode: .adopt(record), build: wanted)
+        case .ready, .missing:
+            return nil
+        }
     }
 }
 

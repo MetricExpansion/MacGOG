@@ -34,7 +34,7 @@ The dictionary is keyed by OAuth client ID. Besides the main account entry, it h
 
 - `client.searchLibrary(_ text: String? = nil) -> [OwnedGame]` returns owned games (`id`, `title`, `platforms`), excluding DLC. `nil` or empty text lists everything. Pages are fetched internally.
 - `client.ownedGames() -> [String]` returns every owned product ID, including DLC.
-- `client.buildList(id, platform:password:) -> BuildList` returns `builds: [GameBuild]`, newest first (`id`, `version`, `branch`, `generation`, `published`, `isPublic`), plus `hasPrivateBranches`. It doesn't work for `.linux`, which uses installers.
+- `client.buildList(id, platform:password:) -> BuildList` returns `builds: [GameBuild]`, newest first (`id`, `version`, `branch`, `generation`, `published`, `publishedDate`, `isPublic`), plus `hasPrivateBranches`. It doesn't work for `.linux`, which uses installers. Set `DownloadOptions.build` to a build's `id` to install that build, older ones included; `Installation.update(options:)` with it downgrades or upgrades in place.
 - `client.productDetails(id) -> ProductDetails`: title, `images` (logo, background, icon), `lead`/`fullDescription` HTML, `releaseDate`, `platforms`, `dlcs: [ProductDLC]`, and `languages(for: platform) -> [Language]` from the installers. Unauthenticated.
 - `OwnedGame.imageURL`: the 392×220 library tile.
 - `client.product(id)` and `client.gameDetails(id)` return raw `JSONValue`. **Don't use them in the app.** Add typed models to the library instead.

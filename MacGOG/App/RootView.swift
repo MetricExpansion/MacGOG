@@ -80,13 +80,15 @@ struct RootView: View {
     }
 }
 
-#Preview("Signed in") {
-    RootView()
-        .modelEnvironment(.preview())
-        .frame(width: 1100, height: 720)
-}
+#if DEBUG
+    #Preview("Signed in") {
+        RootView()
+            .modelEnvironment(.preview())
+            .frame(width: 1100, height: 720)
+    }
 
-#Preview("Signed out") {
-    RootView()
-        .modelEnvironment(.preview(signedIn: false))
-}
+    #Preview("Signed out") {
+        RootView()
+            .modelEnvironment(.preview(signedIn: false))
+    }
+#endif

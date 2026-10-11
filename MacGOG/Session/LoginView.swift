@@ -107,13 +107,15 @@ struct SignInView: View {
     }
 }
 
-#Preview("Sign in") {
-    SignInView()
-        .modelEnvironment(.preview(signedIn: false))
-        .frame(width: 700, height: 500)
-}
+#if DEBUG
+    #Preview("Sign in") {
+        SignInView()
+            .modelEnvironment(.preview(signedIn: false))
+            .frame(width: 700, height: 500)
+    }
 
-#Preview("Login sheet") {
-    LoginView()
-        .modelEnvironment(.preview(signedIn: false))
-}
+    #Preview("Login sheet") {
+        LoginView()
+            .modelEnvironment(.preview(signedIn: false))
+    }
+#endif

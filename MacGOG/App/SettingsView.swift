@@ -152,7 +152,9 @@ private struct AccountSettings: View {
     }
 }
 
-#Preview {
-    SettingsView()
-        .modelEnvironment(.preview())
-}
+#if DEBUG
+    #Preview {
+        SettingsView()
+            .modelEnvironment(.preview())
+    }
+#endif

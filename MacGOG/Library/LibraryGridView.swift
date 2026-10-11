@@ -218,33 +218,35 @@ struct ErrorBanner: View {
     }
 }
 
-#Preview("Library") {
-    NavigationStack {
-        LibraryGridView(filter: .all, path: .constant([]))
+#if DEBUG
+    #Preview("Library") {
+        NavigationStack {
+            LibraryGridView(filter: .all, path: .constant([]))
+        }
+        .modelEnvironment(.preview())
+        .frame(width: 900, height: 600)
     }
-    .modelEnvironment(.preview())
-    .frame(width: 900, height: 600)
-}
 
-#Preview("Empty updates") {
-    NavigationStack {
-        LibraryGridView(filter: .updates, path: .constant([]))
+    #Preview("Empty updates") {
+        NavigationStack {
+            LibraryGridView(filter: .updates, path: .constant([]))
+        }
+        .modelEnvironment(.preview(installed: false, downloading: false))
+        .frame(width: 900, height: 600)
     }
-    .modelEnvironment(.preview(installed: false, downloading: false))
-    .frame(width: 900, height: 600)
-}
 
-#Preview("Tile", traits: .sizeThatFitsLayout) {
-    GameTile(
-        item: LibraryItem(
-            id: "1",
-            title: "The Witcher: Enhanced Edition",
-            platforms: [.windows, .osx],
-            imageURL: nil
-        ),
-        status: .installed
-    )
-    .frame(width: 260)
-    .padding()
-    .modelEnvironment(.preview())
-}
+    #Preview("Tile", traits: .sizeThatFitsLayout) {
+        GameTile(
+            item: LibraryItem(
+                id: "1",
+                title: "The Witcher: Enhanced Edition",
+                platforms: [.windows, .osx],
+                imageURL: nil
+            ),
+            status: .installed
+        )
+        .frame(width: 260)
+        .padding()
+        .modelEnvironment(.preview())
+    }
+#endif

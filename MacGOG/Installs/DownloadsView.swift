@@ -196,10 +196,12 @@ private struct DownloadRow: View {
     }
 }
 
-#Preview {
-    NavigationStack {
-        DownloadsView()
+#if DEBUG
+    #Preview {
+        NavigationStack {
+            DownloadsView()
+        }
+        .modelEnvironment(.preview())
+        .frame(width: 700, height: 400)
     }
-    .modelEnvironment(.preview())
-    .frame(width: 700, height: 400)
-}
+#endif

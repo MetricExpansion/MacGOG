@@ -105,8 +105,10 @@ private struct RestoreBanner: View {
     }
 }
 
-#Preview {
-    MainView()
-        .modelEnvironment(.preview())
-        .frame(width: 1100, height: 720)
-}
+#if DEBUG
+    #Preview {
+        MainView()
+            .modelEnvironment(.preview())
+            .frame(width: 1100, height: 720)
+    }
+#endif

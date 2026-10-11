@@ -368,7 +368,9 @@ struct InstallSheet: View {
     }
 }
 
-#Preview("Install") {
-    InstallSheet(id: PreviewData.witcherID, title: "The Witcher: Enhanced Edition", mode: .install)
-        .modelEnvironment(.preview(installed: false))
-}
+#if DEBUG
+    #Preview("Install") {
+        InstallSheet(id: PreviewData.witcherID, title: "The Witcher: Enhanced Edition", mode: .install)
+            .modelEnvironment(.preview(installed: false))
+    }
+#endif

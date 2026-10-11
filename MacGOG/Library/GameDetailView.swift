@@ -575,26 +575,28 @@ private struct CloudSavesSection: View {
     }
 }
 
-#Preview("Installed, update available") {
-    NavigationStack {
-        GameDetailView(id: PreviewData.witcherID)
+#if DEBUG
+    #Preview("Installed, update available") {
+        NavigationStack {
+            GameDetailView(id: PreviewData.witcherID)
+        }
+        .modelEnvironment(.preview())
+        .frame(width: 900, height: 900)
     }
-    .modelEnvironment(.preview())
-    .frame(width: 900, height: 900)
-}
 
-#Preview("Not installed") {
-    NavigationStack {
-        GameDetailView(id: PreviewData.gwentID)
+    #Preview("Not installed") {
+        NavigationStack {
+            GameDetailView(id: PreviewData.gwentID)
+        }
+        .modelEnvironment(.preview())
+        .frame(width: 900, height: 700)
     }
-    .modelEnvironment(.preview())
-    .frame(width: 900, height: 700)
-}
 
-#Preview("Downloading") {
-    NavigationStack {
-        GameDetailView(id: PreviewData.tyrianID)
+    #Preview("Downloading") {
+        NavigationStack {
+            GameDetailView(id: PreviewData.tyrianID)
+        }
+        .modelEnvironment(.preview())
+        .frame(width: 900, height: 600)
     }
-    .modelEnvironment(.preview())
-    .frame(width: 900, height: 600)
-}
+#endif

@@ -112,6 +112,10 @@ private struct GameHeader: View {
                     placeholder: AnyShapeStyle(.clear),
                     showsPlaceholderIcon: false
                 )
+                // Some of Galaxy's hero images end in a thin light band; draw past the bottom edge
+                // so it's clipped off.
+                .frame(height: Self.height + 16)
+                .frame(height: Self.height, alignment: .top)
             }
             .backgroundExtensionEffect()
             // Shade only behind the title, keeping the art's colour elsewhere.

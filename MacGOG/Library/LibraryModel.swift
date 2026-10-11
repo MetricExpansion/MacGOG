@@ -54,6 +54,24 @@ import SwiftyGOG
         }
     }
 
+    /// Galaxy artwork fetched so far, by product ID.
+    private(set) var artwork: [String: GameArtwork] = [:]
+    @ObservationIgnored private var artworkTasks: [String: Task<GameArtwork, any Error>] = [:]
+
+    /// Galaxy's hero art and covers for a product, fetched once. Artwork is decoration, so a failure
+    /// returns `nil` and is retried next time.
+    func artwork(for id: String) async -> GameArtwork? {
+        if let cached = artwork[id] {
+            return cached
+        }
+        let task = artworkTasks[id] ?? Task { [client] in try await client.artwork(id) }
+        artworkTasks[id] = task
+        defer { artworkTasks[id] = nil }
+        guard let fetched = try? await task.value else { return nil }
+        artwork[id] = fetched
+        return fetched
+    }
+
     /// Owned DLC of a product, in GOG's order.
     func ownedDLCs(of details: ProductDetails) -> [ProductDLC] {
         details.dlcs.filter { ownedIDs.contains($0.id) }

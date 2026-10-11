@@ -34,6 +34,9 @@ extension EnvironmentValues {
 struct ArtworkImage: View {
     let url: URL?
     var contentMode = ContentMode.fill
+    /// Shown behind the image, and alone while it loads or when there is none.
+    var placeholder = AnyShapeStyle(.quaternary)
+    var showsPlaceholderIcon = true
 
     @Environment(\.artworkLoader) private var loader
     @State private var image: NSImage?
@@ -42,14 +45,14 @@ struct ArtworkImage: View {
         // The image is an overlay so its pixel size never drives layout; it fills whatever frame
         // the caller gives.
         Rectangle()
-            .fill(.quaternary)
+            .fill(placeholder)
             .overlay {
                 if let image {
                     Image(nsImage: image)
                         .resizable()
                         .aspectRatio(contentMode: contentMode)
                         .transition(.opacity)
-                } else {
+                } else if showsPlaceholderIcon {
                     Image(systemName: "gamecontroller")
                         .font(.largeTitle)
                         .foregroundStyle(.tertiary)

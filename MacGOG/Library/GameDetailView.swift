@@ -21,7 +21,8 @@ struct GameDetailView: View {
                 GameHeader(
                     id: id,
                     title: details?.title ?? item?.title ?? record?.title ?? "",
-                    details: details
+                    details: details,
+                    tile: item?.imageURL
                 )
                 VStack(alignment: .leading, spacing: 24) {
                     GameActions(id: id, sheet: $sheet)
@@ -53,6 +54,9 @@ struct GameDetailView: View {
                 .padding(24)
             }
         }
+        // The hero art runs up under the toolbar and shows the title large, so the toolbar doesn't.
+        .ignoresSafeArea(.container, edges: .top)
+        .toolbar(removing: .title)
         .navigationTitle(details?.title ?? item?.title ?? record?.title ?? "")
         .task(id: id) { await loadDetails() }
         .sheet(item: $sheet) { request in
@@ -85,40 +89,74 @@ struct GameDetailView: View {
     }
 }
 
+/// Galaxy's hero art behind the title, extending under the toolbar and sidebar.
 private struct GameHeader: View {
     let id: String
     let title: String
     let details: ProductDetails?
+    /// The library tile, blurred, fills the header until the hero art arrives, or when there is none.
+    let tile: URL?
+
+    @Environment(LibraryModel.self) private var library
+
+    static let height: CGFloat = 340
 
     var body: some View {
-        ArtworkImage(url: details?.images.background)
-            .frame(height: 280)
-            .overlay {
-                LinearGradient(
-                    colors: [.clear, .black.opacity(0.75)],
-                    startPoint: .center,
-                    endPoint: .bottom
+        ZStack(alignment: .bottomLeading) {
+            ZStack {
+                ArtworkImage(url: tile, placeholder: AnyShapeStyle(.black), showsPlaceholderIcon: false)
+                    .blur(radius: 40, opaque: true)
+                    .saturation(1.3)
+                ArtworkImage(
+                    url: library.artwork[id]?.background,
+                    placeholder: AnyShapeStyle(.clear),
+                    showsPlaceholderIcon: false
                 )
             }
-            .overlay(alignment: .bottomLeading) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(title)
-                        .font(.largeTitle.bold())
-                        .foregroundStyle(.white)
-                        .shadow(radius: 4)
-                    HStack(spacing: 10) {
-                        ForEach(details?.platforms ?? [], id: \.self) { platform in
-                            Label(platform.displayName, systemImage: platform.symbolName)
-                        }
-                        if let year = details?.releaseDate?.prefix(4) {
-                            Text(year)
-                        }
-                    }
-                    .font(.callout)
-                    .foregroundStyle(.white.opacity(0.85))
-                }
+            .backgroundExtensionEffect()
+            // Shade only behind the title, keeping the art's colour elsewhere.
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0.5),
+                    .init(color: .black.opacity(0.7), location: 1),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            titleBlock
                 .padding(24)
+                // The title sits on dark art in both appearances, so its glass should be dark too.
+                .environment(\.colorScheme, .dark)
+        }
+        .frame(height: Self.height)
+        .clipped()
+        .task(id: id) { _ = await library.artwork(for: id) }
+    }
+
+    private var titleBlock: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.system(size: 34, weight: .bold))
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.5), radius: 8, y: 2)
+            HStack(spacing: 8) {
+                ForEach(details?.platforms ?? [], id: \.self) { platform in
+                    chip(Label(platform.displayName, systemImage: platform.symbolName))
+                }
+                if let year = details?.releaseDate?.prefix(4) {
+                    chip(Text(year))
+                }
             }
+        }
+    }
+
+    private func chip(_ content: some View) -> some View {
+        content
+            .font(.callout.weight(.medium))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .glassEffect(.regular, in: .capsule)
     }
 }
 
